@@ -2,28 +2,30 @@
 #include <HTTPClient.h>
 
 // Pines del sensor HC-SR04
-const int trigPin = 18;
-const int echoPin = 19;
-const int ledPin = 5;
+constexpr int8_t TRIGGER_PIN = 18;
+constexpr int8_t ECHO_PIN = 19;
+constexpr int8_t LED_PIN = 5;
 
 // Datos de la red WiFi
-const char* ssid = "NOMBRE_DE_TU_WIFI";
-const char* password = "CONTRASEÑA_DE_TU_WIFI";
+const char *ssid = "NOMBRE_DE_TU_WIFI";
+const char *password = "CONTRASEÑA_DE_TU_WIFI";
 
 // Variables para el manejo del tiempo
-unsigned long previousMillis = 0; // Para el intervalo de medición
-const long interval = 2000;       // Intervalo de tiempo (2 segundos)
+uint64_t previousMillis = 0; // Para el intervalo de medición
+constexpr uint64_t DISTANCE_UPDATE_DELAY = 2000;       // Intervalo de tiempo (2 segundos)
+
+constexpr float SOUND_SPEED = 0.034; /* Constante en cm/us */
 
 // Función para medir la distancia usando el sensor HC-SR04
 long medirDistancia() {
-  digitalWrite(trigPin, LOW);
+  digitalWrite(TRIGGER_PIN, LOW);
   delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
+  digitalWrite(TRIGGER_PIN, HIGH);
   delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+  digitalWrite(TRIGGER_PIN, LOW);
 
-  long duracion = pulseIn(echoPin, HIGH);
-  long distancia = duracion * 0.034 / 2;
+  long duracion = pulseIn(ECHO_PIN, HIGH);
+  long distancia = duracion * SOUND_SPEED / 2;
   return distancia;
 }
 
@@ -57,7 +59,7 @@ void medirDistanciaTask(void *pvParameters) {
   for (;;) {
     unsigned long currentMillis = millis();
 
-    if (currentMillis - previousMillis >= interval) {
+    if (currentMillis - previousMillis >= DISTANCE_UPDATE_DELAY) {
       previousMillis = currentMillis;
 
       long distancia = medirDistancia();
@@ -67,10 +69,10 @@ void medirDistanciaTask(void *pvParameters) {
 
       // Activar la alarma si la distancia es menor a 10 cm
       if (distancia < 10) {
-        digitalWrite(ledPin, HIGH); // Encender el LED
+        digitalWrite(LED_PIN, HIGH); // Encender el LED
         enviarNotificacion(distancia); // Enviar la notificación por WiFi
       } else {
-        digitalWrite(ledPin, LOW); // Apagar el LED
+        digitalWrite(LED_PIN, LOW); // Apagar el LED
       }
     }
 
@@ -82,9 +84,9 @@ void setup() {
   Serial.begin(115200);
 
   // Configurar los pines
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  pinMode(ledPin, OUTPUT);
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   // Conectar a la red WiFi
   WiFi.begin(ssid, password);
