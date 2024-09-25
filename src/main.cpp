@@ -17,25 +17,24 @@ constexpr uint64_t DISTANCE_UPDATE_DELAY = 2000;       // Intervalo de tiempo (2
 constexpr float SOUND_SPEED = 0.034; /* Constante en cm/us */
 
 // Función para medir la distancia usando el sensor HC-SR04
-long medirDistancia() {
+long getDistance() {
   digitalWrite(TRIGGER_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIGGER_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIGGER_PIN, LOW);
 
-  long duracion = pulseIn(ECHO_PIN, HIGH);
-  long distancia = duracion * SOUND_SPEED / 2;
-  return distancia;
+  long distCm = pulseIn(ECHO_PIN, HIGH) * SOUND_SPEED / 2;
+  return distCm;
 }
 
 // Función para enviar notificación al servidor web
-void enviarNotificacion(long distancia) {
+void sendNotification(long dist) {
   if (WiFi.status() == WL_CONNECTED) { // Verificar si el ESP32 está conectado a WiFi
     HTTPClient http;
     String url = "http://192.168.1.52/notificaciones.php"; // Reemplaza con la URL de tu servidor
     url += "?distancia=";
-    url += distancia;
+    url += dist;
 
     http.begin(url); // Iniciar la solicitud HTTP
     int httpResponseCode = http.GET(); // Realizar la solicitud GET
@@ -55,22 +54,19 @@ void enviarNotificacion(long distancia) {
 }
 
 // Tarea que mide la distancia y maneja la alarma
-void medirDistanciaTask(void *pvParameters) {
+void distanceMeasurementTask(void *pvParameters) {
   for (;;) {
-    unsigned long currentMillis = millis();
-
-    if (currentMillis - previousMillis >= DISTANCE_UPDATE_DELAY) {
+    unsigned long currentMillis;
+    if ((currentMillis = millis()) - previousMillis >= DISTANCE_UPDATE_DELAY) {
       previousMillis = currentMillis;
 
-      long distancia = medirDistancia();
-      Serial.print("Distancia: ");
-      Serial.print(distancia);
-      Serial.println(" cm");
+      long dist = getDistance();
+      Serial.printf("Distancia: %ld cm\n", dist);
 
       // Activar la alarma si la distancia es menor a 10 cm
-      if (distancia < 10) {
+      if (dist < 10) {
         digitalWrite(LED_PIN, HIGH); // Encender el LED
-        enviarNotificacion(distancia); // Enviar la notificación por WiFi
+        sendNotification(dist); // Enviar la notificación por WiFi
       } else {
         digitalWrite(LED_PIN, LOW); // Apagar el LED
       }
@@ -98,7 +94,7 @@ void setup() {
   Serial.println("\nConectado a WiFi");
 
   // Crear la tarea para medir la distancia y manejar el tiempo
-  xTaskCreate(medirDistanciaTask, "Medir Distancia", 4096, NULL, 1, NULL);
+  xTaskCreate(distanceMeasurementTask, "Medir Distancia", 4096, NULL, 1, NULL);
 }
 
 void loop() { }
